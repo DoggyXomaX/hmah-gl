@@ -1,4 +1,5 @@
 import type { TVector2 } from '../types/TVector2';
+import type { TVector3 } from '../types/TVector3';
 
 export class XVector2 {
   public x: number;
@@ -39,9 +40,15 @@ export class XVector2 {
     return new XVector2(v.x, v.y);
   }
 
-  public set(x: number, y: number) {
+  public setf(x: number, y: number) {
     this.x = x;
     this.y = y;
+    return this;
+  }
+
+  public set(v: TVector2) {
+    this.x = v.x;
+    this.y = v.y;
     return this;
   }
 
@@ -103,6 +110,21 @@ export class XVector2 {
     this.x /= v.x;
     this.y /= v.y;
     return this;
+  }
+
+  public static lerpf(a: TVector2, b: TVector2, t: number) {
+    return new XVector2(
+      a.x + (b.x - a.x) * t,
+      a.y + (b.y - a.y) * t,
+    );
+  }
+
+  public static lerp(a: TVector2, b: TVector2, t: number) {
+    t = Math.min(1, Math.max(0, t));
+    return new XVector2(
+      a.x + (b.x - a.x) * t,
+      a.y + (b.y - a.y) * t,
+    );
   }
 
   public static fromRaw(v: TVector2) {

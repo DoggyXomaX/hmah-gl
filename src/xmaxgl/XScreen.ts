@@ -1,12 +1,13 @@
 import type { TColor } from './types/TColor';
 import type { TVector3 } from './types/TVector3';
 import type { TVector2 } from './types/TVector2';
-
-import { XMath } from './lib/XMath';
+import { clamp255, lerpf } from './lib/XMath';
+import { XVector3 } from './lib/XVector3';
 
 let Screen: ImageData = new ImageData(1, 1);
 
 // Cached data
+let UseFastRender = true;
 let Width: number = 1;
 let Height: number = 1;
 let Size: number = 1;
@@ -41,15 +42,27 @@ const add = (x: number, y: number): void => {
   } else {
     const ta = a / 255;
     const ata = 1 - ta;
-    data[i] = XMath.clamp255(data[i] * ata + r * ta);
-    data[i + 1] = XMath.clamp255(data[i + 1] * ata + g * ta);
-    data[i + 2] = XMath.clamp255(data[i + 2] * ata + b * ta);
-    data[i + 3] = XMath.clamp255(data[i + 3] + a);
+    data[i] = clamp255(data[i] * ata + r * ta);
+    data[i + 1] = clamp255(data[i + 1] * ata + g * ta);
+    data[i + 2] = clamp255(data[i + 2] * ata + b * ta);
+    data[i + 3] = clamp255(data[i + 3] + a);
   }
 };
 
 const set = (x: number, y: number, color: TColor): void => {
   return isValid(x, y) ? setUnsafe(x | 0, y | 0, color) : undefined;
+};
+
+const setZBuffered = (x: number, y: number, z: number, color: TColor): void => {
+  return isValid(x, y) ? setZBufferedUnsafe(Math.round(x), Math.round(y), z, color) : undefined;
+};
+
+const setZBufferedUnsafe = (x: number, y: number, z: number, color: TColor): void => {
+  const zBufferIndex = y * Width + x;
+  if (ZBuffer[zBufferIndex] < z) {
+    ZBuffer[zBufferIndex] = z;
+    set(x, y, color);
+  }
 };
 
 const setUnsafe = (x: number, y: number, color: TColor): void => {
@@ -62,14 +75,6 @@ const setUnsafe = (x: number, y: number, color: TColor): void => {
   data[i + 3] = a;
 };
 
-const setZBuffer = (x: number, y: number, value: number): void => {
-  return isValid(x, y) ? setZBufferUnsafe(x | 0, y | 0, value) : undefined;
-};
-
-const setZBufferUnsafe = (x: number, y: number, value: number): void => {
-  ZBuffer[y * Width + x] = value;
-};
-
 const get = (x: number, y: number): TColor => {
   let r = 0, g = 0, b = 0, a = 0;
   if (isValid(x, y)) {
@@ -77,10 +82,6 @@ const get = (x: number, y: number): TColor => {
     [r, g, b, a] = Screen.data.slice(i, i + 4);
   }
   return { r, g, b, a };
-};
-
-const getZBuffer = (x: number, y: number): number => {
-  return isValid(x, y) ? ZBuffer[(y | 0) * Width + (x | 0)] : -Infinity;
 };
 
 const clear = (): void => {
@@ -111,19 +112,19 @@ const fill = (): void => {
     const ta = a / 255;
     const ata = 1 - ta;
     for (let i = 0; i < Size; i += 4) {
-      data[i] = XMath.clamp255(data[i] * ata + r * ta);
-      data[i + 1] = XMath.clamp255(data[i + 1] * ata + g * ta);
-      data[i + 2] = XMath.clamp255(data[i + 2] * ata + b * ta);
-      data[i + 3] = XMath.clamp255(data[i + 3] + a);
+      data[i] = clamp255(data[i] * ata + r * ta);
+      data[i + 1] = clamp255(data[i + 1] * ata + g * ta);
+      data[i + 2] = clamp255(data[i + 2] * ata + b * ta);
+      data[i + 3] = clamp255(data[i + 3] + a);
     }
   }
 };
 
 const line = (a: TVector2, b: TVector2) => {
-  let ax = a.x | 0;
-  let ay = a.y | 0;
-  let bx = b.x | 0;
-  let by = b.y | 0;
+  let ax = Math.round(a.x);
+  let ay = Math.round(a.y);
+  let bx = Math.round(b.x);
+  let by = Math.round(b.y);
 
   if (ax === bx && ay === by) {
     return set(ax, ay, Color);
@@ -172,58 +173,57 @@ const lineTriangle = (a: TVector2, b: TVector2, c: TVector2) => {
 };
 
 const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
-  if (a.y < b.y) [a, b] = [b, a];
-  if (a.y < c.y) [a, c] = [c, a];
-  if (b.y < c.y) [b, c] = [c, b];
+  let ai: TVector3, bi: TVector3, ci: TVector3;
+  if (UseFastRender) {
+    ai = { x: Math.round(a.x), y: Math.round(a.y), z: a.z }
+    bi = { x: Math.round(b.x), y: Math.round(b.y), z: b.z }
+    ci = { x: Math.round(c.x), y: Math.round(c.y), z: c.z }
+  } else {
+    [ai, bi, ci] = [a, b, c];
+  }
 
-  const interpolate = (y: number, v1: TVector3, v2: TVector3): TVector3 => {
-    const t = (y - v1.y) / (v2.y - v1.y);
-    return {
-      x: v1.x + t * (v2.x - v1.x),
-      y: v1.y + t * (v2.y - v1.y),
-      z: v1.z + t * (v2.z - v1.z),
-    };
-  };
+  if (ai.y < bi.y) [ai, bi] = [bi, ai];
+  if (ai.y < ci.y) [ai, ci] = [ci, ai];
+  if (bi.y < ci.y) [bi, ci] = [ci, bi];
 
-  const drawScanline = (y: number, x1: number, z1: number, x2: number, z2: number) => {
-    if (x1 > x2) {
-      [x1, x2] = [x2, x1];
-      [z1, z2] = [z2, z1];
-    }
+  const fillTrianglePart = (yStart: number, yEnd: number, left: TVector3, right: TVector3) => {
+    const fromY = Math.max(0, Math.ceil(yEnd));
+    const toY = Math.min(Height - 1, Math.floor(yStart));
 
-    const fromX = Math.max(0, Math.ceil(x1));
-    const toX = Math.min(Width, Math.floor(x2));
-    for (let x = fromX; x <= toX; x++) {
-      const t = (x - x1) / (x2 - x1 || 1); // Avoid division by zero
-      const z = z1 + t * (z2 - z1);
-      if (z > 0) continue;
+    const dy1 = 1 / (right.y - left.y);
+    const dy2 = 1 / (ci.y - ai.y);
 
-      const zBufferIndex = Math.floor(y) * Width + Math.floor(x);
-      if (ZBuffer[zBufferIndex] < z) {
-        ZBuffer[zBufferIndex] = z;
-        set(x, y, Color);
+    for (let y = fromY; y <= toY; y++) {
+      let { x: x1, z: z1 } = XVector3.lerpf(left, right, (y - left.y) * dy1);
+      let { x: x2, z: z2} = XVector3.lerpf(ai, ci, (y - ai.y) * dy2);
+
+      if (x1 > x2) {
+        [x1, x2] = [x2, x1];
+        [z1, z2] = [z2, z1];
+      }
+
+      const fromX = Math.max(0, Math.ceil(x1));
+      const toX = Math.min(Width - 1, Math.floor(x2));
+      for (let x = fromX; x <= toX; x++) {
+        const t = (x - x1) / (x2 - x1 || 1);
+        const z = lerpf(z1, z2, t);
+        if (z > 0) continue;
+
+        const zBufferIndex = y * Width + x;
+        if (ZBuffer[zBufferIndex] < z) {
+          ZBuffer[zBufferIndex] = z;
+          set(x, y, Color);
+        }
       }
     }
   };
 
-  const processTrianglePart = (yStart: number, yEnd: number, left: TVector3, right: TVector3) => {
-    const fromY = Math.min(Height, Math.floor(yStart));
-    const toY = Math.max(0, Math.ceil(yEnd))
-    for (let y = fromY; y >= toY; y--) {
-      const leftPoint = interpolate(y, left, right);
-      const rightPoint = interpolate(y, a, c);
-      drawScanline(y, leftPoint.x, leftPoint.z, rightPoint.x, rightPoint.z);
-    }
-  };
-
-  // Верхняя часть треугольника
-  if (b.y !== a.y) {
-    processTrianglePart(a.y, b.y, a, b);
-  }
-
-  // Нижняя часть треугольника
-  if (c.y !== b.y) {
-    processTrianglePart(b.y, c.y, b, c);
+  if (UseFastRender) {
+    if (bi.y !== ai.y) fillTrianglePart(ai.y, bi.y, ai, bi);
+    if (bi.y !== ci.y) fillTrianglePart(bi.y, ci.y, bi, ci);
+  } else {
+    fillTrianglePart(ai.y, bi.y, ai, bi);
+    fillTrianglePart(bi.y, ci.y, bi, ci);
   }
 };
 
@@ -233,7 +233,7 @@ const getDepthData = (): ImageData => {
 
   for (let i = 0, j = 0; i < Size; i += 4, j++) {
     const bufValue = ZBuffer[j];
-    const value = Number.isFinite(bufValue) ? 255 - XMath.clamp255(-bufValue >> 2) : 0;
+    const value = Number.isFinite(bufValue) ? 255 - clamp255(-bufValue >> 2) : 0;
     outData[i] = value;
     outData[i + 1] = value;
     outData[i + 2] = value;
@@ -252,9 +252,7 @@ export const XScreen = {
 
   add,
   set,
-  setZBuffer,
   get,
-  getZBuffer,
 
   clearZBuffer,
 
