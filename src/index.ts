@@ -76,7 +76,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
     a: 255,
   });
 
-  const useRandomColors = true;
+  const useRandomColors = false;
 
   const backColor = useRandomColors ? c() : { r: 0, g: 0, b: 192, a: 255 }
   const frontColor = useRandomColors ? c() : { r: 0, g: 192, b: 0, a: 255 };
@@ -209,10 +209,10 @@ const toViewport = (p: TVector3): TVector3 => {
   const aspectX = halfHeight / halfWidth;
   x *= aspectX;
 
-  // const dist = 4;
-  // const proj = dist / (dist + Math.abs(z));
-  // x *= proj;
-  // y *= proj;
+  const dist = 4;
+  const proj = dist / (dist + Math.abs(z));
+  x *= proj;
+  y *= proj;
 
   return {
     x: (1 + x) * halfWidth,
