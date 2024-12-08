@@ -15,6 +15,8 @@ Software renderer.
 
 <img width="96" src=".assets/bun.svg" alt="bun.svg">
 
+### [Install bun](https://bun.sh)
+
 ```shell
 bun install
 bun start
