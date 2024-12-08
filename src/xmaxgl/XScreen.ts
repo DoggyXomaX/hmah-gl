@@ -238,48 +238,62 @@ const fillTextureTriangle = (
     [bUV, cUV] = [cUV, bUV];
   }
 
+  const { x: ax, y: ay, z: az } = a;
+  const { x: cx, y: cy, z: cz } = c;
+  const { x: aU, y: aV } = aUV;
+  const { x: cU, y: cV } = cUV;
+
   const fillTrianglePart = (
     left: TVector3, right: TVector3,
     uvLeft: TVector2, uvRight: TVector2,
   ) => {
-    const yStart = left.y;
-    const yEnd = right.y;
+    const { x: leftX, y: leftY, z: leftZ } = left;
+    const { x: rightX, y: rightY, z: rightZ } = right;
+    const { x: uLeft, y: vLeft } = uvLeft;
+    const { x: uRight, y: vRight } = uvRight;
 
-    const fromY = Math.max(0, Math.ceil(yEnd));
-    const toY = Math.min(Height - 1, Math.floor(yStart));
+    const fromY = Math.max(0, Math.ceil(rightY));
+    const toY = Math.min(Height - 1, Math.floor(leftY));
 
-    const dy1 = 1 / (right.y - left.y);
-    const dy2 = 1 / (c.y - a.y);
+    const dy1 = 1 / (rightY - leftY);
+    const dy2 = 1 / (cy - ay);
 
     for (let y = fromY; y <= toY; y++) {
-      let { x: x1, z: z1 } = XVector3.lerpf(left, right, (y - left.y) * dy1);
-      let { x: x2, z: z2} = XVector3.lerpf(a, c, (y - a.y) * dy2);
-
-      let uv1 = XVector2.lerpf(uvLeft, uvRight, (y - left.y) * dy1);
-      let uv2 = XVector2.lerpf(aUV, cUV, (y - a.y) * dy2);
+      const t1 = (y - leftY) * dy1;
+      const t2 = (y - ay) * dy2;
+      let x1 = leftX + (rightX - leftX) * t1;
+      let z1 = leftZ + (rightZ - leftZ) * t1;
+      let u1 = uLeft + (uRight - uLeft) * t1;
+      let v1 = vLeft + (vRight - vLeft) * t1;
+      let x2 = ax + (cx - ax) * t2;
+      let z2 = az + (cz - az) * t2;
+      let u2 = aU + (cU - aU) * t2;
+      let v2 = aV + (cV - aV) * t2;
 
       if (x1 > x2) {
-        [x1, x2] = [x2, x1];
-        [z1, z2] = [z2, z1];
-        [uv1, uv2] = [uv2, uv1];
+        let t = x1; x1 = x2; x2 = t;
+        t = z1; z1 = z2; z2 = t;
+        t = u1; u1 = u2; u2 = t;
+        t = v1; v1 = v2; v2 = t;
       }
 
-      const fromX = Math.max(0, Math.ceil(x1));
-      const toX = Math.min(Width - 1, Math.floor(x2));
+      const fromX = Math.max(0, (x1 + 0.5) | 0);
+      const toX = Math.min(Width - 1, x2 | 0);
 
       for (let x = fromX; x <= toX; x++) {
         const t = (x - x1) / (x2 - x1 || 1);
-        const z = lerpf(z1, z2, t);
+        const z = z1 + (z2 - z1) * t;
         if (z > 0) continue;
 
         const zBufferIndex = y * Width + x;
         if (ZBuffer[zBufferIndex] < z) {
           ZBuffer[zBufferIndex] = z;
 
-          const uv = XVector2.lerpf(uv1, uv2, t);
+          const u = u1 + (u2 - u1) * t;
+          const v = v1 + (v2 - v1) * t;
 
-          const tx = ((uv.x * tWidth) | 0) % tWidth;
-          const ty = ((uv.y * tHeight) | 0) % tHeight;
+          const tx = ((u * tWidth) | 0) % tWidth;
+          const ty = ((v * tHeight) | 0) % tHeight;
           const ti = (ty * tWidth + tx) << 2;
 
           set(x, y, {
