@@ -10,7 +10,6 @@ import { XVector2 } from './lib/XVector2';
 let Screen: ImageData = new ImageData(1, 1);
 
 // Cached data
-let UseFastRender = true;
 let Width: number = 1;
 let Height: number = 1;
 let Size: number = 1;
@@ -82,7 +81,10 @@ const get = (x: number, y: number): TColor => {
   let r = 0, g = 0, b = 0, a = 0;
   if (isValid(x, y)) {
     const i = ((y >> 0) * Width + (x >> 0)) * 4;
-    [r, g, b, a] = Screen.data.slice(i, i + 4);
+    r = Screen.data[i];
+    g = Screen.data[i + 1];
+    b = Screen.data[i + 2];
+    a = Screen.data[i + 3];
   }
   return { r, g, b, a };
 };
@@ -176,29 +178,20 @@ const lineTriangle = (a: TVector2, b: TVector2, c: TVector2) => {
 };
 
 const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
-  let ai: TVector3, bi: TVector3, ci: TVector3;
-  if (UseFastRender) {
-    ai = { x: Math.round(a.x), y: Math.round(a.y), z: a.z }
-    bi = { x: Math.round(b.x), y: Math.round(b.y), z: b.z }
-    ci = { x: Math.round(c.x), y: Math.round(c.y), z: c.z }
-  } else {
-    [ai, bi, ci] = [a, b, c];
-  }
-
-  if (ai.y < bi.y) [ai, bi] = [bi, ai];
-  if (ai.y < ci.y) [ai, ci] = [ci, ai];
-  if (bi.y < ci.y) [bi, ci] = [ci, bi];
+  if (a.y < b.y) [a, b] = [b, a];
+  if (a.y < c.y) [a, c] = [c, a];
+  if (b.y < c.y) [b, c] = [c, b];
 
   const fillTrianglePart = (yStart: number, yEnd: number, left: TVector3, right: TVector3) => {
     const fromY = Math.max(0, Math.ceil(yEnd));
     const toY = Math.min(Height - 1, Math.floor(yStart));
 
     const dy1 = 1 / (right.y - left.y);
-    const dy2 = 1 / (ci.y - ai.y);
+    const dy2 = 1 / (c.y - a.y);
 
     for (let y = fromY; y <= toY; y++) {
       let { x: x1, z: z1 } = XVector3.lerpf(left, right, (y - left.y) * dy1);
-      let { x: x2, z: z2} = XVector3.lerpf(ai, ci, (y - ai.y) * dy2);
+      let { x: x2, z: z2} = XVector3.lerpf(a, c, (y - a.y) * dy2);
 
       if (x1 > x2) {
         [x1, x2] = [x2, x1];
@@ -221,13 +214,8 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
     }
   };
 
-  if (UseFastRender) {
-    if (bi.y !== ai.y) fillTrianglePart(ai.y, bi.y, ai, bi);
-    if (bi.y !== ci.y) fillTrianglePart(bi.y, ci.y, bi, ci);
-  } else {
-    fillTrianglePart(ai.y, bi.y, ai, bi);
-    fillTrianglePart(bi.y, ci.y, bi, ci);
-  }
+  fillTrianglePart(a.y, b.y, a, b);
+  fillTrianglePart(b.y, c.y, b, c);
 };
 
 const fillTextureTriangle = (
@@ -235,25 +223,18 @@ const fillTextureTriangle = (
   aUV: TVector2, bUV: TVector2, cUV: TVector2,
   texture: TTexture,
 ) => {
-  let ai: TVector3, bi: TVector3, ci: TVector3;
-  if (UseFastRender) {
-    ai = { x: Math.round(a.x), y: Math.round(a.y), z: a.z }
-    bi = { x: Math.round(b.x), y: Math.round(b.y), z: b.z }
-    ci = { x: Math.round(c.x), y: Math.round(c.y), z: c.z }
-  } else {
-    [ai, bi, ci] = [a, b, c];
-  }
+  const { width: tWidth, height: tHeight, data: tData } = texture;
 
-  if (ai.y < bi.y) {
-    [ai, bi] = [bi, ai];
+  if (a.y < b.y) {
+    [a, b] = [b, a];
     [aUV, bUV] = [bUV, aUV];
   }
-  if (ai.y < ci.y) {
-    [ai, ci] = [ci, ai];
+  if (a.y < c.y) {
+    [a, c] = [c, a];
     [aUV, cUV] = [cUV, aUV];
   }
-  if (bi.y < ci.y) {
-    [bi, ci] = [ci, bi];
+  if (b.y < c.y) {
+    [b, c] = [c, b];
     [bUV, cUV] = [cUV, bUV];
   }
 
@@ -268,14 +249,14 @@ const fillTextureTriangle = (
     const toY = Math.min(Height - 1, Math.floor(yStart));
 
     const dy1 = 1 / (right.y - left.y);
-    const dy2 = 1 / (ci.y - ai.y);
+    const dy2 = 1 / (c.y - a.y);
 
     for (let y = fromY; y <= toY; y++) {
       let { x: x1, z: z1 } = XVector3.lerpf(left, right, (y - left.y) * dy1);
-      let { x: x2, z: z2} = XVector3.lerpf(ai, ci, (y - ai.y) * dy2);
+      let { x: x2, z: z2} = XVector3.lerpf(a, c, (y - a.y) * dy2);
 
       let uv1 = XVector2.lerpf(uvLeft, uvRight, (y - left.y) * dy1);
-      let uv2 = XVector2.lerpf(aUV, cUV, (y - ai.y) * dy2);
+      let uv2 = XVector2.lerpf(aUV, cUV, (y - a.y) * dy2);
 
       if (x1 > x2) {
         [x1, x2] = [x2, x1];
@@ -294,17 +275,26 @@ const fillTextureTriangle = (
         const zBufferIndex = y * Width + x;
         if (ZBuffer[zBufferIndex] < z) {
           ZBuffer[zBufferIndex] = z;
+
           const uv = XVector2.lerpf(uv1, uv2, t);
-          let r = 0, g = 0, b = 0, a = 0;
-          // Do something with UV o_O
-          set(x, y, { r, g, b, a });
+
+          const tx = ((uv.x * tWidth) | 0) % tWidth;
+          const ty = ((uv.y * tHeight) | 0) % tHeight;
+          const ti = (ty * tWidth + tx) << 2;
+
+          set(x, y, {
+            r: tData[ti],
+            g: tData[ti + 1],
+            b: tData[ti + 2],
+            a: tData[ti + 3],
+          });
         }
       }
     }
   };
 
-  if (!UseFastRender || bi.y !== ai.y) fillTrianglePart(ai, bi, aUV, bUV);
-  if (!UseFastRender || bi.y !== ci.y) fillTrianglePart(bi, ci, bUV, cUV);
+  fillTrianglePart(a, b, aUV, bUV);
+  fillTrianglePart(b, c, bUV, cUV);
 }
 
 const getImageData = () => Screen;

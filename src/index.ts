@@ -7,6 +7,9 @@ import { XTextures } from './xmaxgl/XTextures';
 import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
 
 import hmah from './assets/hmah.jpg';
+import skybox from './assets/skybox.jpg';
+
+const paths = [hmah, skybox];
 
 const defaultState = {
   canvas: undefined as unknown as HTMLCanvasElement,
@@ -87,16 +90,12 @@ const init = async () => {
   const { canvas } = state;
   XScreen.init(canvas.width, canvas.height);
 
-  const paths = [hmah];
-  XTextures.resize(paths.length)
-
+  XTextures.resize(paths.length);
   await Promise.all(paths.map(async (path, i) => {
     const texture = await XTextures.loadTexture(path);
     if (!texture) throw Error(`Failed to load texture[${i}] "${path}"`);
     XTextures.addTexture(texture, i);
   }));
-
-  console.log(XTextures.textures[0]);
 
   addResizeObserver();
   addHotkeyListeners();
@@ -155,6 +154,9 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
   const topColor = useRandomColors ? c() : { r: 192, g: 0, b: 192, a: 255 };
   const bottomColor = useRandomColors ? c() : { r: 192, g: 192, b: 0, a: 255 };
 
+  const polys = [0, 1, 3, 2, 1, 3];
+  const uvs = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+
   return {
     parts: [
       // Back
@@ -167,8 +169,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x: -w, y: -h, z: -d },
             { x:  w, y: -h, z: -d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
       // Front
@@ -181,8 +183,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x:  w, y: -h, z:  d },
             { x: -w, y: -h, z:  d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
       // Left
@@ -195,8 +197,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x: -w, y: -h, z:  d },
             { x: -w, y: -h, z: -d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
       // Right
@@ -209,8 +211,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x:  w, y: -h, z: -d },
             { x:  w, y: -h, z:  d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
       // Top
@@ -223,8 +225,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x:  w, y:  h, z:  d },
             { x: -w, y:  h, z:  d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
       // Bottom
@@ -237,8 +239,8 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
             { x:  w, y: -h, z: -d },
             { x: -w, y: -h, z: -d },
           ],
-          polys: [0, 1, 3, 2, 1, 3],
-          uvs: [],
+          polys,
+          uvs,
         }
       },
     ],
@@ -297,17 +299,28 @@ const render = () => {
   const meshesCount = meshes.length;
   for (let m = 0; m < meshesCount; m++) {
     const { parts } = meshes[m];
+
+    const isSkybox = m === 4;
+    const texture = XTextures.textures[isSkybox ? 1 : 0];
+    if (!texture) continue;
+
     const partsCount = parts.length;
     for (let i = 0; i < partsCount; i++) {
-      const { color, surface: { points, polys } } = parts[i];
+      const { color, surface: { points, uvs, polys } } = parts[i];
       const polysLength = polys.length;
       XScreen.setColor(color ?? { r: 255, g: 0, b: 0, a : 255 });
 
       for (let j = 0; j < polysLength; j += 3) {
-        const a = toViewport(points[polys[j]]);
-        const b = toViewport(points[polys[j + 1]]);
-        const c = toViewport(points[polys[j + 2]]);
-        XScreen.fillTriangle(a, b, c);
+        const aIndex = polys[j];
+        const bIndex = polys[j + 1];
+        const cIndex = polys[j + 2];
+        const a = toViewport(points[aIndex]);
+        const b = toViewport(points[bIndex]);
+        const c = toViewport(points[cIndex]);
+        const aUV = uvs[aIndex];
+        const bUV = uvs[bIndex];
+        const cUV = uvs[cIndex];
+        XScreen.fillTextureTriangle(a, b, c, aUV, bUV, cUV, texture);
       }
     }
   }
