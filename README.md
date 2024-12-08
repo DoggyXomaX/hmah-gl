@@ -8,7 +8,7 @@ Software renderer.
 
 ## Install and run
 
-![bun.svg](.assets/bun.svg)
+<img width="96" src=".assets/bun.svg" alt="bun.svg">
 
 ```shell
 bun install
