@@ -5,65 +5,121 @@ import type { TColor } from './xmaxgl/types/TColor';
 import { XScreen } from './xmaxgl/XScreen';
 import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
 
-const canvas = document.querySelector<HTMLCanvasElement>('.viewport__canvas');
-if (!canvas) throw Error('Viewport not found!');
+const defaultState = {
+  canvas: undefined as unknown as HTMLCanvasElement,
+  context: undefined as unknown as CanvasRenderingContext2D,
 
-const context = canvas.getContext('2d');
-if (!context) throw Error('Cannot get content from viewport!');
+  angleX: 0.5,
+  angleY: 0.5,
+  isAutoRotate: true,
+  isShowDepth: false,
 
-// Rescale canvas
-new ResizeObserver((entries) => {
-  const target = entries[0].target as HTMLBodyElement;
-  const { width, height } = calculateAspectSize(
-    target.offsetWidth,
-    target.offsetHeight,
-    canvas.width,
-    canvas.height,
-  );
+  fps: 0,
+  fpsDisplay: 0,
+};
+const state = { ...defaultState };
 
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-}).observe(document.body);
+const addResizeObserver = () => {
+  const observer = new ResizeObserver((entries) => {
+    const { canvas } = state;
+    if (!canvas) return;
 
-const init = () => {
-  XScreen.init(canvas.width, canvas.height);
-  window.onkeydown = (e) => {
-    switch (e.code) {
-      case 'KeyA': angleY += 0.05; break;
-      case 'KeyD': angleY -= 0.05; break;
-      case 'KeyW': angleX -= 0.05; break;
-      case 'KeyS': angleX += 0.05; break;
-      case 'Space': isShowDepth = !isShowDepth; break;
-      case 'KeyR': isAutoRotate = !isAutoRotate; break;
-    }
-  }
-  update();
+    const target = entries[0].target as HTMLBodyElement;
+    const { width, height } = calculateAspectSize(
+      target.offsetWidth,
+      target.offsetHeight,
+      canvas.width,
+      canvas.height,
+    );
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  });
+
+  observer.observe(document.body);
 };
 
-let angleX = 0.5;
-let angleY = 0.5;
-let isAutoRotate = true;
-let isShowDepth = false;
+const addHotkeyListeners = () => {
+  window.onkeydown = (e) => {
+    switch (e.code) {
+      case 'KeyA': state.angleY += 0.05; break;
+      case 'KeyD': state.angleY -= 0.05; break;
+      case 'KeyW': state.angleX -= 0.05; break;
+      case 'KeyS': state.angleX += 0.05; break;
+      case 'Space': state.isShowDepth = !state.isShowDepth; break;
+      case 'KeyR': state.isAutoRotate = !state.isAutoRotate; break;
+    }
+  }
+};
+
+const startFpsTimer = () => {
+  setInterval(() => {
+    state.fpsDisplay = state.fps * 2;
+    state.fps = 0;
+  }, 500);
+};
+
+const initCanvas = (): boolean => {
+  const canvas = document.querySelector<HTMLCanvasElement>('.viewport__canvas');
+  if (!canvas) {
+    console.error('Viewport not found!');
+    return false;
+  }
+
+  const context = canvas.getContext('2d');
+  if (!context) {
+    console.error('Cannot get content from viewport!');
+    return false;
+  }
+
+  state.canvas = canvas;
+  state.context = context;
+
+  return true;
+};
+
+const init = () => {
+  if (!initCanvas()) return;
+
+  const { canvas } = state;
+  XScreen.init(canvas.width, canvas.height);
+
+  addResizeObserver();
+  addHotkeyListeners();
+  startFpsTimer();
+
+  requestAnimationFrame(update);
+};
 
 const update = () => {
-  render();
+  const { canvas } = state;
 
-  if (isAutoRotate) {
-    angleX += 0.002;
-    angleY += 0.001;
+  if (state.isAutoRotate) {
+    state.angleX += 0.002;
+    state.angleY += 0.001;
   }
 
   const debugInfo = document.querySelector<HTMLSpanElement>('#debug-info');
   if (debugInfo) {
-    const xDeg = (angleX * 180 / Math.PI).toFixed(2);
-    const yDeg = (angleY * 180 / Math.PI).toFixed(2);
-    debugInfo.innerText = `angleX: ${xDeg}deg, angleY: ${yDeg}deg`
+    const xDeg = (state.angleX * 180 / Math.PI).toFixed(2);
+    const yDeg = (state.angleY * 180 / Math.PI).toFixed(2);
+
+    const info = [
+      `Rotation: X: ${xDeg}, Y: ${yDeg}, Z: 0`,
+      `Rendering: ${state.isShowDepth ? 'Depth' : 'Image'} [${canvas.width} X ${canvas.height}]`,
+      `FPS: ${state.fpsDisplay}`,
+    ];
+
+    debugInfo.innerText = info.join('\n');
   }
 
-  // setTimeout(update, 500);
+  render();
+  state.fps++;
+
   requestAnimationFrame(update);
 };
 
+const cubeSize = 1;
 const createCubeMesh = (w: number, h: number, d: number): TMesh => {
   w /= 2;
   h /= 2;
@@ -174,9 +230,6 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
     ],
   };
 };
-
-const cubeSize = 1;
-
 const meshes: TMesh[] = [
   createCubeMesh(cubeSize, cubeSize, cubeSize),
   createCubeMesh(cubeSize / 2, cubeSize * 2, cubeSize / 2),
@@ -186,6 +239,8 @@ const meshes: TMesh[] = [
 ];
 
 const toViewport = (p: TVector3): TVector3 => {
+  const { canvas, angleX, angleY } = state;
+
   const halfWidth = canvas.width / 2;
   const halfHeight = canvas.height / 2;
   const halfDepth = 256;
@@ -221,7 +276,7 @@ const toViewport = (p: TVector3): TVector3 => {
   };
 };
 
-const nativeRender = () => {
+const render = () => {
   XScreen.clear();
   XScreen.clearZBuffer();
 
@@ -243,9 +298,7 @@ const nativeRender = () => {
     }
   }
 
-  context.putImageData(isShowDepth ? XScreen.getDepthData() : XScreen.getImageData(), 0, 0);
+  state.context.putImageData(state.isShowDepth ? XScreen.getDepthData() : XScreen.getImageData(), 0, 0);
 };
 
-const render = nativeRender;
-
-init();
+window.addEventListener('DOMContentLoaded', init);
