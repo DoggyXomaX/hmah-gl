@@ -1,9 +1,9 @@
 import type { TMesh } from './xmaxgl/types/TMesh';
 import type { TVector3 } from './xmaxgl/types/TVector3';
+import type { TColor } from './xmaxgl/types/TColor';
 
 import { XScreen } from './xmaxgl/XScreen';
 import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
-import type { TColor } from './xmaxgl/types/TColor';
 
 const canvas = document.querySelector<HTMLCanvasElement>('.viewport__canvas');
 if (!canvas) throw Error('Viewport not found!');
@@ -182,6 +182,7 @@ const meshes: TMesh[] = [
   createCubeMesh(cubeSize / 2, cubeSize * 2, cubeSize / 2),
   createCubeMesh(cubeSize * 2, cubeSize / 2, cubeSize / 2),
   createCubeMesh(cubeSize * 3, cubeSize / 3, cubeSize / 3),
+  createCubeMesh(cubeSize * 20, cubeSize * 20, cubeSize * 20),
 ];
 
 const toViewport = (p: TVector3): TVector3 => {
@@ -208,10 +209,10 @@ const toViewport = (p: TVector3): TVector3 => {
   const aspectX = halfHeight / halfWidth;
   x *= aspectX;
 
-  const dist = 1;
-  const proj = dist / (dist + Math.abs(z));
-  x *= proj;
-  y *= proj;
+  // const dist = 4;
+  // const proj = dist / (dist + Math.abs(z));
+  // x *= proj;
+  // y *= proj;
 
   return {
     x: (1 + x) * halfWidth,

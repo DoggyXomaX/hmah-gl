@@ -191,22 +191,25 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
       [z1, z2] = [z2, z1];
     }
 
-    for (let x = Math.ceil(x1); x <= Math.floor(x2); x++) {
+    const fromX = Math.max(0, Math.ceil(x1));
+    const toX = Math.min(Width, Math.floor(x2));
+    for (let x = fromX; x <= toX; x++) {
       const t = (x - x1) / (x2 - x1 || 1); // Avoid division by zero
       const z = z1 + t * (z2 - z1);
+      if (z > 0) continue;
 
       const zBufferIndex = Math.floor(y) * Width + Math.floor(x);
-      if (ZBuffer[zBufferIndex] >= z) {
-        continue;
+      if (ZBuffer[zBufferIndex] < z) {
+        ZBuffer[zBufferIndex] = z;
+        set(x, y, Color);
       }
-
-      ZBuffer[zBufferIndex] = z;
-      set(x, y, Color);
     }
   };
 
   const processTrianglePart = (yStart: number, yEnd: number, left: TVector3, right: TVector3) => {
-    for (let y = Math.floor(yStart); y >= Math.ceil(yEnd); y--) {
+    const fromY = Math.min(Height, Math.floor(yStart));
+    const toY = Math.max(0, Math.ceil(yEnd))
+    for (let y = fromY; y >= toY; y--) {
       const leftPoint = interpolate(y, left, right);
       const rightPoint = interpolate(y, a, c);
       drawScanline(y, leftPoint.x, leftPoint.z, rightPoint.x, rightPoint.z);
