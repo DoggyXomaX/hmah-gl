@@ -3,6 +3,7 @@ import type { TVector3 } from './xmaxgl/types/TVector3';
 
 import { XScreen } from './xmaxgl/XScreen';
 import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
+import type { TColor } from './xmaxgl/types/TColor';
 
 const canvas = document.querySelector<HTMLCanvasElement>('.viewport__canvas');
 if (!canvas) throw Error('Viewport not found!');
@@ -67,11 +68,28 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
   w /= 2;
   h /= 2;
   d /= 2;
+
+  const c = (): TColor => ({
+    r: Math.random() * 255 | 0,
+    g: Math.random() * 255 | 0,
+    b: Math.random() * 255 | 0,
+    a: 255,
+  });
+
+  const useRandomColors = true;
+
+  const backColor = useRandomColors ? c() : { r: 0, g: 0, b: 192, a: 255 }
+  const frontColor = useRandomColors ? c() : { r: 0, g: 192, b: 0, a: 255 };
+  const leftColor = useRandomColors ? c() : { r: 0, g: 192, b: 192, a: 255 };
+  const rightColor = useRandomColors ? c() : { r: 192, g: 0, b: 0, a: 255 };
+  const topColor = useRandomColors ? c() : { r: 192, g: 0, b: 192, a: 255 };
+  const bottomColor = useRandomColors ? c() : { r: 192, g: 192, b: 0, a: 255 };
+
   return {
     parts: [
       // Back
       {
-        color: { r: 0, g: 0, b: 192, a: 255 },
+        color: backColor,
         surface: {
           points: [
             { x:  w, y:  h, z: -d },
@@ -85,7 +103,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
       },
       // Front
       {
-        color: { r: 0, g: 192, b: 0, a: 255 },
+        color: frontColor,
         surface: {
           points: [
             { x: -w, y:  h, z:  d },
@@ -99,7 +117,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
       },
       // Left
       {
-        color: { r: 0, g: 192, b: 192, a: 255 },
+        color: leftColor,
         surface: {
           points: [
             { x: -w, y:  h, z: -d },
@@ -113,7 +131,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
       },
       // Right
       {
-        color: { r: 192, g: 0, b: 0, a: 255 },
+        color: rightColor,
         surface: {
           points: [
             { x:  w, y:  h, z:  d },
@@ -127,7 +145,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
       },
       // Top
       {
-        color: { r: 192, g: 0, b: 192, a: 255 },
+        color: topColor,
         surface: {
           points: [
             { x: -w, y:  h, z: -d },
@@ -141,7 +159,7 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
       },
       // Bottom
       {
-        color: { r: 192, g: 192, b: 0, a: 255 },
+        color: bottomColor,
         surface: {
           points: [
             { x: -w, y: -h, z:  d },
