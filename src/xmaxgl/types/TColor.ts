@@ -1,0 +1,1 @@
+export type TColor = { r: number; g: number; b: number; a: number };

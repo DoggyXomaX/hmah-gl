@@ -1,0 +1,1 @@
+export type TShaderUserData = Record<string, any>;

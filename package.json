@@ -1,0 +1,16 @@
+{
+  "name": "xmax-gl",
+  "type": "module",
+  "devDependencies": {
+    "@parcel/transformer-sass": "2.13.1",
+    "@types/bun": "latest",
+    "parcel": "^2.13.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "start": "parcel index.html",
+    "build": "parcel build index.html"
+  }
+}
