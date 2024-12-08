@@ -3,7 +3,10 @@ import type { TVector3 } from './xmaxgl/types/TVector3';
 import type { TColor } from './xmaxgl/types/TColor';
 
 import { XScreen } from './xmaxgl/XScreen';
+import { XTextures } from './xmaxgl/XTextures';
 import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
+
+import hmah from './assets/hmah.jpg';
 
 const defaultState = {
   canvas: undefined as unknown as HTMLCanvasElement,
@@ -78,16 +81,27 @@ const initCanvas = (): boolean => {
   return true;
 };
 
-const init = () => {
+const init = async () => {
   if (!initCanvas()) return;
 
   const { canvas } = state;
   XScreen.init(canvas.width, canvas.height);
 
+  const paths = [hmah];
+  XTextures.resize(paths.length)
+
+  await Promise.all(paths.map(async (path, i) => {
+    const texture = await XTextures.loadTexture(path);
+    if (!texture) throw Error(`Failed to load texture[${i}] "${path}"`);
+    XTextures.addTexture(texture, i);
+  }));
+
+  console.log(XTextures.textures[0]);
+
   addResizeObserver();
   addHotkeyListeners();
-  startFpsTimer();
 
+  startFpsTimer();
   requestAnimationFrame(update);
 };
 

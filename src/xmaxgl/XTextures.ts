@@ -33,12 +33,20 @@ const loadTexture = async (url: string): Promise<TTexture | undefined> => {
   return { data, width, height };
 };
 
-const addTexture = (texture: TTexture): void => {
-  textures.push(texture);
+const addTexture = (texture: TTexture, i?: number): void => {
+  if (i != null) {
+    textures[i] = texture;
+  } else {
+    textures.push(texture);
+  }
 };
 
 const clear = () => {
   textures.length = 0;
+};
+
+const resize = (size: number) => {
+  textures.length = size;
 };
 
 export const XTextures = {
@@ -46,4 +54,5 @@ export const XTextures = {
   loadTexture,
   addTexture,
   clear,
+  resize,
 };

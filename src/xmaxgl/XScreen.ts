@@ -1,6 +1,8 @@
 import type { TColor } from './types/TColor';
 import type { TVector3 } from './types/TVector3';
 import type { TVector2 } from './types/TVector2';
+import type { TTexture } from './types/TTexture';
+
 import { clamp255, lerpf } from './lib/XMath';
 import { XVector3 } from './lib/XVector3';
 import { XVector2 } from './lib/XVector2';
@@ -231,7 +233,7 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
 const fillTextureTriangle = (
   a: TVector3, b: TVector3, c: TVector3,
   aUV: TVector2, bUV: TVector2, cUV: TVector2,
-  texture: ImageData
+  texture: TTexture,
 ) => {
   let ai: TVector3, bi: TVector3, ci: TVector3;
   if (UseFastRender) {
@@ -339,6 +341,7 @@ export const XScreen = {
   line,
   lineTriangle,
   fillTriangle,
+  fillTextureTriangle,
 
   getImageData,
   getDepthData,
