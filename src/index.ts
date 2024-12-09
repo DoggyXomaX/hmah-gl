@@ -370,6 +370,7 @@ const render = () => {
         const aIndex = polys[j];
         const bIndex = polys[j + 1];
         const cIndex = polys[j + 2];
+        // TODO: vertex shader with matrices instead of this shit
         const a = toViewport(points[aIndex]);
         const b = toViewport(points[bIndex]);
         const c = toViewport(points[cIndex]);
