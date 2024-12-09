@@ -1,10 +1,10 @@
-import type { TMesh } from './xmaxgl/types/TMesh';
-import type { TVector3 } from './xmaxgl/types/TVector3';
-import type { TColor } from './xmaxgl/types/TColor';
+import type { TMesh } from './hmahgl/types/TMesh';
+import type { TVector3 } from './hmahgl/types/TVector3';
+import type { TColor } from './hmahgl/types/TColor';
 
-import { XScreen } from './xmaxgl/XScreen';
-import { XTextures } from './xmaxgl/XTextures';
-import { calculateAspectSize } from './xmaxgl/utils/calculateAspectSize';
+import { XScreen } from './hmahgl/XScreen';
+import { XTextures } from './hmahgl/XTextures';
+import { calculateAspectSize } from './hmahgl/utils/calculateAspectSize';
 
 import hmah from './assets/hmah.jpg';
 import skybox from './assets/skybox.jpg';

@@ -1,4 +1,4 @@
-# xmax-gl
+# hmah-gl
 
 ## Info
 
