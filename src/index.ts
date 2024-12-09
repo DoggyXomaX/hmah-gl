@@ -10,12 +10,15 @@ import { calculateAspectSize } from './hmahgl/utils/calculateAspectSize';
 import hmah from './assets/hmah.jpg';
 import skybox from './assets/skybox.jpg';
 
+let canvas: HTMLCanvasElement = document.querySelector('.viewport__canvas')!;
+if (!canvas) throw Error('No .viewport__canvas!');
+
+let context: CanvasRenderingContext2D = canvas.getContext('2d')!;
+if (!context) throw Error('Failed to get canvas context!');
+
 const paths = [hmah, skybox];
 
 const defaultState = {
-  canvas: undefined as unknown as HTMLCanvasElement,
-  context: undefined as unknown as CanvasRenderingContext2D,
-
   angleX: 0.5,
   angleY: 0.5,
   isAutoRotate: true,
@@ -27,9 +30,7 @@ const defaultState = {
 
 // Fucking hot reload stuff
 const DEV_STATE_KEY = '__devstate';
-const AUTO_SAVE_INTERVAL = 1000;
-const NEED_DELETE_STATE = false;
-if (NEED_DELETE_STATE) localStorage.removeItem(DEV_STATE_KEY);
+const AUTO_SAVE_INTERVAL = 250;
 
 const isHot = 'hot' in module;
 const devStateText = localStorage.getItem(DEV_STATE_KEY);
@@ -45,7 +46,6 @@ if (isHot) {
 
 const addResizeObserver = () => {
   const observer = new ResizeObserver((entries) => {
-    const { canvas } = state;
     if (!canvas) return;
 
     const target = entries[0].target as HTMLBodyElement;
@@ -72,6 +72,7 @@ const addHotkeyListeners = () => {
       case 'KeyS': state.angleX += 0.05; break;
       case 'Space': state.isShowDepth = !state.isShowDepth; break;
       case 'KeyR': state.isAutoRotate = !state.isAutoRotate; break;
+      case 'KeyQ': localStorage.removeItem(DEV_STATE_KEY); window.location.reload(); break;
     }
   }
 };
@@ -83,29 +84,7 @@ const startFpsTimer = () => {
   }, 500);
 };
 
-const initCanvas = (): boolean => {
-  const canvas = document.querySelector<HTMLCanvasElement>('.viewport__canvas');
-  if (!canvas) {
-    console.error('Viewport not found!');
-    return false;
-  }
-
-  const context = canvas.getContext('2d');
-  if (!context) {
-    console.error('Cannot get content from viewport!');
-    return false;
-  }
-
-  state.canvas = canvas;
-  state.context = context;
-
-  return true;
-};
-
 const init = async () => {
-  if (!initCanvas()) return;
-
-  const { canvas } = state;
   XScreen.init(canvas.width, canvas.height);
 
   XTextures.resize(paths.length);
@@ -123,8 +102,6 @@ const init = async () => {
 };
 
 const update = () => {
-  const { canvas } = state;
-
   if (state.isAutoRotate) {
     state.angleX += 0.002;
     state.angleY += 0.001;
@@ -308,8 +285,6 @@ const createHmahScene = (): TMesh[] => {
   // Lower cap
   polys.push(23, 16, 17, 22, 23, 17, 22, 17, 18, 21, 22, 18, 21, 18, 19, 21, 19, 20);
 
-  console.log({ points, polys, uvs });
-
   return [
     {
       parts: [
@@ -336,7 +311,7 @@ const cubesScene: TMesh[] = [
 const meshes: TMesh[] = createHmahScene();
 
 const toViewport = (p: TVector3): TVector3 => {
-  const { canvas, angleX, angleY } = state;
+  const { angleX, angleY } = state;
 
   const halfWidth = canvas.width / 2;
   const halfHeight = canvas.height / 2;
@@ -406,7 +381,7 @@ const render = () => {
     }
   }
 
-  state.context.putImageData(state.isShowDepth ? XScreen.getDepthData() : XScreen.getImageData(), 0, 0);
+  context.putImageData(state.isShowDepth ? XScreen.getDepthData() : XScreen.getImageData(), 0, 0);
 };
 
 window.addEventListener('DOMContentLoaded', init);
