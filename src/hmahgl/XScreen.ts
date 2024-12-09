@@ -93,8 +93,8 @@ const get = (x: number, y: number): TColor => {
 };
 
 const clear = (): void => {
-  const { data } = Screen;
-  for (let i = 0; i < Size; i++) data[i] = 0;
+  const size = Width * Height;
+  for (let i = 0; i < size; i++) Screen32[i] = 0;
 };
 
 const clearZBuffer = (): void => {
