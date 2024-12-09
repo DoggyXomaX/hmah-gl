@@ -4,6 +4,7 @@
   "devDependencies": {
     "@parcel/transformer-sass": "2.13.1",
     "@types/bun": "latest",
+    "buffer": "^5.5.0||^6.0.0",
     "parcel": "^2.13.1"
   },
   "peerDependencies": {
