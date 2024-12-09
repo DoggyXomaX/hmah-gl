@@ -1,6 +1,7 @@
 import type { TMesh } from './hmahgl/types/TMesh';
 import type { TVector3 } from './hmahgl/types/TVector3';
 import type { TColor } from './hmahgl/types/TColor';
+import type { TVector2 } from './hmahgl/types/TVector2';
 
 import { XScreen } from './hmahgl/XScreen';
 import { XTextures } from './hmahgl/XTextures';
@@ -23,7 +24,24 @@ const defaultState = {
   fps: 0,
   fpsDisplay: 0,
 };
-const state = { ...defaultState };
+
+// Fucking hot reload stuff
+const DEV_STATE_KEY = '__devstate';
+const AUTO_SAVE_INTERVAL = 1000;
+const NEED_DELETE_STATE = false;
+if (NEED_DELETE_STATE) localStorage.removeItem(DEV_STATE_KEY);
+
+const isHot = 'hot' in module;
+const devStateText = localStorage.getItem(DEV_STATE_KEY);
+const devState = isHot && devStateText ? JSON.parse(devStateText) : undefined;
+const state = devState ?? { ...defaultState };
+
+if (isHot) {
+  setInterval(() => {
+    localStorage.setItem(DEV_STATE_KEY, JSON.stringify(state));
+  }, AUTO_SAVE_INTERVAL);
+}
+// End of fucking hot reload stuff
 
 const addResizeObserver = () => {
   const observer = new ResizeObserver((entries) => {
@@ -246,13 +264,76 @@ const createCubeMesh = (w: number, h: number, d: number): TMesh => {
     ],
   };
 };
-const meshes: TMesh[] = [
+
+const createHmahScene = (): TMesh[] => {
+  const points: TVector3[] = [];
+  const polys: number[] = [];
+  const uvs: TVector2[] = [];
+
+  const di = (Math.PI * 2) / 8;
+  for (let p = 0; p < 3; p++) {
+    for (let i = 0; i < 8; i++) {
+      const a = di * i;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+
+      const m = p === 1 ? 2 : 1;
+      const my = p;
+
+      points.push({
+        x: cos * 0.5 * m,
+        y: 1 - p,
+        z: sin * 0.5 * m,
+      });
+      uvs.push({
+        x: 0.59 + cos * 0.1 * my,
+        y: 0.25 + sin * 0.15 * my,
+      });
+    }
+  }
+
+  // Upper cap
+  polys.push(7, 0, 1, 6, 7, 1, 6, 1, 2, 5, 6, 2, 5, 2, 3, 5, 3, 4);
+
+  // Top/Bottom side
+  for (let p = 0; p < 2; p++) {
+    const a = p * 8;
+    const b = (p + 1) * 8;
+    for (let i = 0; i < 8; i++) {
+      const di = (7 + i) % 8;
+      polys.push(a + i, a + di, b + i, b + i, a + di, b + di);
+    }
+  }
+
+  // Lower cap
+  polys.push(23, 16, 17, 22, 23, 17, 22, 17, 18, 21, 22, 18, 21, 18, 19, 21, 19, 20);
+
+  console.log({ points, polys, uvs });
+
+  return [
+    {
+      parts: [
+        {
+          surface: {
+            points,
+            polys,
+            uvs,
+          }
+        }
+      ]
+    }
+  ];
+};
+
+const cubesScene: TMesh[] = [
   createCubeMesh(cubeSize, cubeSize, cubeSize),
   createCubeMesh(cubeSize / 2, cubeSize * 2, cubeSize / 2),
   createCubeMesh(cubeSize * 2, cubeSize / 2, cubeSize / 2),
   createCubeMesh(cubeSize * 3, cubeSize / 3, cubeSize / 3),
   createCubeMesh(cubeSize * 20, cubeSize * 20, cubeSize * 20),
 ];
+
+const meshes: TMesh[] = createHmahScene();
 
 const toViewport = (p: TVector3): TVector3 => {
   const { canvas, angleX, angleY } = state;
