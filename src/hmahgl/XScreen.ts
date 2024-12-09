@@ -5,16 +5,18 @@ import type { TTexture } from './types/TTexture';
 
 import { clamp255, lerpf } from './lib/XMath';
 import { XVector3 } from './lib/XVector3';
-import { XVector2 } from './lib/XVector2';
+
+const MIN_INT32 = -2147483648;
 
 let Screen: ImageData = new ImageData(1, 1);
+let Screen32: Int32Array = new Int32Array(Screen.data.buffer);
 
 // Cached data
 let Width: number = 1;
 let Height: number = 1;
 let Size: number = 1;
 let Color: TColor = { r: 0, g: 0, b: 0, a: 0 };
-let ZBuffer: number[] = [-Infinity];
+let ZBuffer: Int32Array = new Int32Array([MIN_INT32]);
 let ZBufferImageData: ImageData;
 
 const isValid = (x: number, y: number): boolean => {
@@ -23,10 +25,11 @@ const isValid = (x: number, y: number): boolean => {
 
 const init = (width: number, height: number): void => {
   Screen = new ImageData(width, height);
+  Screen32 = new Int32Array(Screen.data.buffer);
   Width = width;
   Height = height;
   Size = width * height * 4;
-  ZBuffer = new Array(width * height).fill(-Infinity);
+  ZBuffer = new Int32Array(width * height).fill(MIN_INT32);
   ZBufferImageData = new ImageData(width, height);
 };
 
@@ -91,15 +94,13 @@ const get = (x: number, y: number): TColor => {
 
 const clear = (): void => {
   const { data } = Screen;
-  for (let i = 0; i < Size; i++) {
-    data[i] = 0;
-  }
+  for (let i = 0; i < Size; i++) data[i] = 0;
 };
 
 const clearZBuffer = (): void => {
   const bufLen = ZBuffer.length;
   for (let i = 0; i < bufLen; i++) {
-    ZBuffer[i] = -Infinity;
+    ZBuffer[i] = MIN_INT32;
   }
 };
 
@@ -183,8 +184,8 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
   if (b.y < c.y) [b, c] = [c, b];
 
   const fillTrianglePart = (yStart: number, yEnd: number, left: TVector3, right: TVector3) => {
-    const fromY = Math.max(0, Math.ceil(yEnd));
-    const toY = Math.min(Height - 1, Math.floor(yStart));
+    const fromY = Math.max(0, (yEnd + 0.5 | 1));
+    const toY = Math.min(Height - 1, yStart | 0);
 
     const dy1 = 1 / (right.y - left.y);
     const dy2 = 1 / (c.y - a.y);
@@ -199,7 +200,7 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
       }
 
       const fromX = Math.max(0, Math.ceil(x1));
-      const toX = Math.min(Width - 1, Math.floor(x2));
+      const toX = Math.min(Width - 1, x2 | 0);
       for (let x = fromX; x <= toX; x++) {
         const t = (x - x1) / (x2 - x1 || 1);
         const z = lerpf(z1, z2, t);
@@ -223,7 +224,11 @@ const fillTextureTriangle = (
   aUV: TVector2, bUV: TVector2, cUV: TVector2,
   texture: TTexture,
 ) => {
+  // Exclude culled polygons
+  if (a.z > 0 && b.z > 0 && c.z > 0) return;
+
   const { width: tWidth, height: tHeight, data: tData } = texture;
+  const tBuffer32 = new Int32Array(tData.buffer);
 
   if (a.y < b.y) {
     [a, b] = [b, a];
@@ -253,22 +258,32 @@ const fillTextureTriangle = (
     const { x: uRight, y: vRight } = uvRight;
 
     const fromY = Math.max(0, Math.ceil(rightY));
-    const toY = Math.min(Height - 1, Math.floor(leftY));
+    const toY = Math.min(Height - 1, leftY | 0);
 
     const dy1 = 1 / (rightY - leftY);
     const dy2 = 1 / (cy - ay);
 
+    // Y Loop cache
+    const rightDx = rightX - leftX;
+    const rightDz = rightZ - leftZ;
+    const rightDu = uRight - uLeft;
+    const rightDv = vRight - vLeft;
+    const dACX = cx - ax;
+    const dACZ = cz - az;
+    const dACU = cU - aU;
+    const dACV = cV - aV;
+
     for (let y = fromY; y <= toY; y++) {
       const t1 = (y - leftY) * dy1;
       const t2 = (y - ay) * dy2;
-      let x1 = leftX + (rightX - leftX) * t1;
-      let z1 = leftZ + (rightZ - leftZ) * t1;
-      let u1 = uLeft + (uRight - uLeft) * t1;
-      let v1 = vLeft + (vRight - vLeft) * t1;
-      let x2 = ax + (cx - ax) * t2;
-      let z2 = az + (cz - az) * t2;
-      let u2 = aU + (cU - aU) * t2;
-      let v2 = aV + (cV - aV) * t2;
+      let x1 = leftX + rightDx * t1;
+      let z1 = leftZ + rightDz * t1;
+      let u1 = uLeft + rightDu * t1;
+      let v1 = vLeft + rightDv * t1;
+      let x2 = ax + dACX * t2;
+      let z2 = az + dACZ * t2;
+      let u2 = aU + dACU * t2;
+      let v2 = aV + dACV * t2;
 
       if (x1 > x2) {
         let t = x1; x1 = x2; x2 = t;
@@ -277,31 +292,31 @@ const fillTextureTriangle = (
         t = v1; v1 = v2; v2 = t;
       }
 
-      const fromX = Math.max(0, (x1 + 0.5) | 0);
+      const fromX = Math.max(0, Math.ceil(x1));
       const toX = Math.min(Width - 1, x2 | 0);
 
+      // X Loop cache
+      const dx21 = (x2 - x1 || 1);
+      const dz21 = (z2 - z1);
+      const du21 = (u2 - u1);
+      const dv21 = (v2 - v1);
+      const yWidth = y * Width;
+
       for (let x = fromX; x <= toX; x++) {
-        const t = (x - x1) / (x2 - x1 || 1);
-        const z = z1 + (z2 - z1) * t;
+        const t = (x - x1) / dx21;
+        const z = z1 + dz21 * t;
         if (z > 0) continue;
 
-        const zBufferIndex = y * Width + x;
+        const zBufferIndex = yWidth + x;
         if (ZBuffer[zBufferIndex] < z) {
           ZBuffer[zBufferIndex] = z;
 
-          const u = u1 + (u2 - u1) * t;
-          const v = v1 + (v2 - v1) * t;
+          const u = u1 + du21 * t;
+          const v = v1 + dv21 * t;
 
-          const tx = ((u * tWidth) | 0) % tWidth;
-          const ty = ((v * tHeight) | 0) % tHeight;
-          const ti = (ty * tWidth + tx) << 2;
-
-          set(x, y, {
-            r: tData[ti],
-            g: tData[ti + 1],
-            b: tData[ti + 2],
-            a: tData[ti + 3],
-          });
+          const tx = (u * tWidth | 0) % tWidth;
+          const ty = (v * tHeight | 0) % tHeight;
+          Screen32[yWidth + x] = tBuffer32[ty * tWidth + tx];
         }
       }
     }
@@ -317,7 +332,7 @@ const getDepthData = (): ImageData => {
 
   for (let i = 0, j = 0; i < Size; i += 4, j++) {
     const bufValue = ZBuffer[j];
-    const value = Number.isFinite(bufValue) ? 255 - clamp255(-bufValue >> 2) : 0;
+    const value = bufValue !== MIN_INT32 ? 255 - clamp255(-bufValue >> 2) : 0;
     outData[i] = value;
     outData[i + 1] = value;
     outData[i + 2] = value;
