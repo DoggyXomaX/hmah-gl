@@ -116,7 +116,7 @@ const update = () => {
 
     const info = [
       `Rotation: X: ${xDeg}, Y: ${yDeg}, Z: 0`,
-      `Rendering: ${state.isShowDepth ? 'Depth' : 'Image'} [${canvas.width} X ${canvas.height}]`,
+      `Rendering: ${state.isShowDepth ? 'Depth' : 'Image'} (${FilteringType[state.filteringType]}) [${canvas.width} X ${canvas.height}]`,
       `FPS: ${state.fpsDisplay}`,
     ];
 
