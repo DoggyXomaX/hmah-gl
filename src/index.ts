@@ -322,30 +322,33 @@ const toViewport = (p: TVector3): TVector3 => {
   const halfHeight = canvas.height / 2;
   const halfDepth = 256;
 
+  // RotateY
   const cosY = Math.cos(angleY);
   const sinY = Math.sin(angleY);
-
   let x = p.x * cosY + p.z * sinY;
   let y = p.y;
   let z = p.z * cosY - p.x * sinY;
 
+  // RotateX
   const cosX = Math.cos(angleX);
   const sinX = Math.sin(angleX);
-
   let ty = y * cosX - z * sinX;
   z = z * cosX + y * sinX;
   y = ty;
 
-  z -= cubeSize * 2;
+  // Offset cubes
+  z -= cubeSize * 4;
 
-  const aspectX = halfHeight / halfWidth;
-  x *= aspectX;
+  // Fix aspect ratio
+  y *= halfWidth / halfHeight;
 
+  // Projection
   const dist = 4;
   const proj = dist / (dist + Math.abs(z));
   x *= proj;
   y *= proj;
 
+  // Scale
   return {
     x: (1 + x) * halfWidth,
     y: (1 - y) * halfHeight,
