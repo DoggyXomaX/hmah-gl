@@ -219,16 +219,21 @@ const fillTriangle = (a: TVector3, b: TVector3, c: TVector3) => {
   fillTrianglePart(b.y, c.y, b, c);
 };
 
+export enum FilteringType {
+  Nearest,
+  Bilinear,
+}
+
 const fillTextureTriangle = (
   a: TVector3, b: TVector3, c: TVector3,
   aUV: TVector2, bUV: TVector2, cUV: TVector2,
-  texture: TTexture,
+  texture: TTexture, filtering = FilteringType.Bilinear,
 ) => {
   // Exclude culled polygons
   if (a.z > 0 && b.z > 0 && c.z > 0) return;
 
   const { width: tWidth, height: tHeight, data: tData } = texture;
-  const tBuffer32 = new Int32Array(tData.buffer);
+  const tData32 = new Int32Array(tData.buffer);
 
   if (a.y < b.y) {
     [a, b] = [b, a];
@@ -273,51 +278,163 @@ const fillTextureTriangle = (
     const dACU = cU - aU;
     const dACV = cV - aV;
 
-    for (let y = fromY; y <= toY; y++) {
-      const t1 = (y - leftY) * dy1;
-      const t2 = (y - ay) * dy2;
-      let x1 = leftX + rightDx * t1;
-      let z1 = leftZ + rightDz * t1;
-      let u1 = uLeft + rightDu * t1;
-      let v1 = vLeft + rightDv * t1;
-      let x2 = ax + dACX * t2;
-      let z2 = az + dACZ * t2;
-      let u2 = aU + dACU * t2;
-      let v2 = aV + dACV * t2;
+    switch (filtering) {
+      case FilteringType.Nearest: {
+        for (let y = fromY; y <= toY; y++) {
+          const t1 = (y - leftY) * dy1;
+          const t2 = (y - ay) * dy2;
+          let x1 = leftX + rightDx * t1;
+          let z1 = leftZ + rightDz * t1;
+          let u1 = uLeft + rightDu * t1;
+          let v1 = vLeft + rightDv * t1;
+          let x2 = ax + dACX * t2;
+          let z2 = az + dACZ * t2;
+          let u2 = aU + dACU * t2;
+          let v2 = aV + dACV * t2;
 
-      if (x1 > x2) {
-        let t = x1; x1 = x2; x2 = t;
-        t = z1; z1 = z2; z2 = t;
-        t = u1; u1 = u2; u2 = t;
-        t = v1; v1 = v2; v2 = t;
-      }
+          if (x1 > x2) {
+            let t = x1;
+            x1 = x2;
+            x2 = t;
+            t = z1;
+            z1 = z2;
+            z2 = t;
+            t = u1;
+            u1 = u2;
+            u2 = t;
+            t = v1;
+            v1 = v2;
+            v2 = t;
+          }
 
-      const fromX = Math.max(0, Math.ceil(x1));
-      const toX = Math.min(Width - 1, x2 | 0);
+          const fromX = Math.max(0, Math.ceil(x1));
+          const toX = Math.min(Width - 1, x2 | 0);
 
-      // X Loop cache
-      const dx21 = (x2 - x1 || 1);
-      const dz21 = (z2 - z1);
-      const du21 = (u2 - u1);
-      const dv21 = (v2 - v1);
-      const yWidth = y * Width;
+          // X Loop cache
+          const dx21 = (x2 - x1 || 1);
+          const dz21 = (z2 - z1);
+          const du21 = (u2 - u1);
+          const dv21 = (v2 - v1);
+          const yWidth = y * Width;
 
-      for (let x = fromX; x <= toX; x++) {
-        const t = (x - x1) / dx21;
-        const z = z1 + dz21 * t;
-        if (z > 0) continue;
+          for (let x = fromX; x <= toX; x++) {
+            const t = (x - x1) / dx21;
+            const z = z1 + dz21 * t;
+            if (z > 0) continue;
 
-        const zBufferIndex = yWidth + x;
-        if (ZBuffer[zBufferIndex] < z) {
-          ZBuffer[zBufferIndex] = z;
+            const zBufferIndex = yWidth + x;
+            if (ZBuffer[zBufferIndex] < z) {
+              ZBuffer[zBufferIndex] = z;
 
-          const u = u1 + du21 * t;
-          const v = v1 + dv21 * t;
+              const u = u1 + du21 * t;
+              const v = v1 + dv21 * t;
 
-          const tx = (u * tWidth | 0) % tWidth;
-          const ty = (v * tHeight | 0) % tHeight;
-          Screen32[yWidth + x] = tBuffer32[ty * tWidth + tx];
+              const tx = (u * tWidth | 0) % tWidth;
+              const ty = (v * tHeight | 0) % tHeight
+
+              Screen32[yWidth + x] = tData32[ty * tWidth + tx];
+            }
+          }
         }
+        break;
+      }
+      case FilteringType.Bilinear: {
+        for (let y = fromY; y <= toY; y++) {
+          const t1 = (y - leftY) * dy1;
+          const t2 = (y - ay) * dy2;
+          let x1 = leftX + rightDx * t1;
+          let z1 = leftZ + rightDz * t1;
+          let u1 = uLeft + rightDu * t1;
+          let v1 = vLeft + rightDv * t1;
+          let x2 = ax + dACX * t2;
+          let z2 = az + dACZ * t2;
+          let u2 = aU + dACU * t2;
+          let v2 = aV + dACV * t2;
+
+          if (x1 > x2) {
+            let t = x1;
+            x1 = x2;
+            x2 = t;
+            t = z1;
+            z1 = z2;
+            z2 = t;
+            t = u1;
+            u1 = u2;
+            u2 = t;
+            t = v1;
+            v1 = v2;
+            v2 = t;
+          }
+
+          const fromX = Math.max(0, Math.ceil(x1));
+          const toX = Math.min(Width - 1, x2 | 0);
+
+          // X Loop cache
+          const dx21 = (x2 - x1 || 1);
+          const dz21 = (z2 - z1);
+          const du21 = (u2 - u1);
+          const dv21 = (v2 - v1);
+          const yWidth = y * Width;
+
+          for (let x = fromX; x <= toX; x++) {
+            const t = (x - x1) / dx21;
+            const z = z1 + dz21 * t;
+            if (z > 0) continue;
+
+            const zBufferIndex = yWidth + x;
+            if (ZBuffer[zBufferIndex] < z) {
+              ZBuffer[zBufferIndex] = z;
+
+              const u = u1 + du21 * t;
+              const v = v1 + dv21 * t;
+
+              const tx = (u * tWidth | 0) % tWidth;
+              const ty = (v * tHeight | 0) % tHeight
+
+              const ftx = u * tWidth % tWidth;
+              const fty = v * tHeight % tHeight;
+              const tx1 = (u * tWidth + 1 | 0) % tWidth;
+              const ty1 = (v * tHeight + 1 | 0) % tHeight;
+
+              const dtx = ftx - tx;
+              const dty = fty - ty;
+
+              const i0 = (ty * tWidth + tx) << 2;
+              const i1 = (ty * tWidth + tx1) << 2;
+              const i2 = (ty1 * tWidth + tx) << 2;
+              const i3 = (ty1 * tWidth + tx1) << 2;
+
+              const aR = tData[i0];
+              const bR = tData[i1];
+              const cR = tData[i2];
+              const dR = tData[i3];
+              const abR = aR + (bR - aR) * dtx;
+              const cdR = cR + (dR - cR) * dtx;
+              const abcdR = abR + (cdR - abR) * dty;
+
+              const aG = tData[i0 + 1];
+              const bG = tData[i1 + 1];
+              const cG = tData[i2 + 1];
+              const dG = tData[i3 + 1];
+              const abG = aG + (bG - aG) * dtx;
+              const cdG = cG + (dG - cG) * dtx;
+              const abcdG = abG + (cdG - abG) * dty;
+
+              const aB = tData[i0 + 2];
+              const bB = tData[i1 + 2];
+              const cB = tData[i2 + 2];
+              const dB = tData[i3 + 2];
+              const abB = aB + (bB - aB) * dtx;
+              const cdB = cB + (dB - cB) * dtx;
+              const abcdB = abB + (cdB - abB) * dty;
+
+              const abcdA = tData[i0 + 3];
+
+              Screen32[yWidth + x] = (abcdA << 24) | (abcdB << 16) | (abcdG << 8) | abcdR;
+            }
+          }
+        }
+        break;
       }
     }
   };
@@ -325,6 +442,8 @@ const fillTextureTriangle = (
   fillTrianglePart(a, b, aUV, bUV);
   fillTrianglePart(b, c, bUV, cUV);
 }
+
+let penis = true;
 
 const getImageData = () => Screen;
 const getDepthData = (): ImageData => {

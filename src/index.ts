@@ -3,7 +3,7 @@ import type { TVector3 } from './hmahgl/types/TVector3';
 import type { TColor } from './hmahgl/types/TColor';
 import type { TVector2 } from './hmahgl/types/TVector2';
 
-import { XScreen } from './hmahgl/XScreen';
+import { FilteringType, XScreen } from './hmahgl/XScreen';
 import { XTextures } from './hmahgl/XTextures';
 import { calculateAspectSize } from './hmahgl/utils/calculateAspectSize';
 
@@ -23,6 +23,7 @@ const defaultState = {
   angleY: 0.5,
   isAutoRotate: true,
   isShowDepth: false,
+  filteringType: FilteringType.Nearest,
 
   fps: 0,
   fpsDisplay: 0,
@@ -70,6 +71,7 @@ const addHotkeyListeners = () => {
       case 'KeyD': state.angleY -= 0.05; break;
       case 'KeyW': state.angleX -= 0.05; break;
       case 'KeyS': state.angleX += 0.05; break;
+      case 'KeyF': state.filteringType = state.filteringType === FilteringType.Nearest ? FilteringType.Bilinear : FilteringType.Nearest; break;
       case 'Space': state.isShowDepth = !state.isShowDepth; break;
       case 'KeyR': state.isAutoRotate = !state.isAutoRotate; break;
       case 'KeyQ': localStorage.removeItem(DEV_STATE_KEY); window.location.reload(); break;
@@ -124,6 +126,7 @@ const update = () => {
   render();
   state.fps++;
 
+  // setTimeout(update, 2500);
   requestAnimationFrame(update);
 };
 
@@ -308,7 +311,9 @@ const cubesScene: TMesh[] = [
   createCubeMesh(cubeSize * 20, cubeSize * 20, cubeSize * 20),
 ];
 
-const meshes: TMesh[] = createHmahScene();
+const hmahScene: TMesh[] = createHmahScene();
+
+const meshes: TMesh[] = hmahScene;
 
 const toViewport = (p: TVector3): TVector3 => {
   const { angleX, angleY } = state;
@@ -352,6 +357,8 @@ const render = () => {
   XScreen.clear();
   XScreen.clearZBuffer();
 
+  const { filteringType } = state;
+
   const meshesCount = meshes.length;
   for (let m = 0; m < meshesCount; m++) {
     const { parts } = meshes[m];
@@ -377,7 +384,7 @@ const render = () => {
         const aUV = uvs[aIndex];
         const bUV = uvs[bIndex];
         const cUV = uvs[cIndex];
-        XScreen.fillTextureTriangle(a, b, c, aUV, bUV, cUV, texture);
+        XScreen.fillTextureTriangle(a, b, c, aUV, bUV, cUV, texture, filteringType);
       }
     }
   }
