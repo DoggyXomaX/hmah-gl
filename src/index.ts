@@ -35,7 +35,7 @@ const AUTO_SAVE_INTERVAL = 250;
 const isHot = 'hot' in module;
 const devStateText = localStorage.getItem(DEV_STATE_KEY);
 const devState = isHot && devStateText ? JSON.parse(devStateText) : undefined;
-const state = devState ?? { ...defaultState };
+const state = devState ? { ...defaultState, ...devState } : { ...defaultState };
 
 if (isHot) {
   setInterval(() => {
