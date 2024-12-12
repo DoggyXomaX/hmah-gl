@@ -370,67 +370,44 @@ const fillTextureTriangle = (
           const toX = Math.min(Width - 1, x2 | 0);
 
           // X Loop cache
-          const dx21 = (x2 - x1 || 1);
-          const dz21 = (z2 - z1);
-          const du21 = (u2 - u1);
-          const dv21 = (v2 - v1);
+          const dx21 = 1 / (x2 - x1 || 1);
+          const dz21 = z2 - z1;
+          const du21 = u2 - u1;
+          const dv21 = v2 - v1;
           const yWidth = y * Width;
 
           for (let x = fromX; x <= toX; x++) {
-            const t = (x - x1) / dx21;
-            const z = z1 + dz21 * t;
-            if (z > 0) continue;
+            const t = (x - x1) * dx21;
+            const z = ~~(z1 + dz21 * t);
+            if (z >= 0) continue;
 
             const zBufferIndex = yWidth + x;
             if (ZBuffer[zBufferIndex] < z) {
               ZBuffer[zBufferIndex] = z;
 
-              const u = u1 + du21 * t;
-              const v = v1 + dv21 * t;
-
-              const tx = (u * tWidth | 0) % tWidth;
-              const ty = (v * tHeight | 0) % tHeight
-
-              const ftx = u * tWidth % tWidth;
-              const fty = v * tHeight % tHeight;
-              const tx1 = (u * tWidth + 1 | 0) % tWidth;
-              const ty1 = (v * tHeight + 1 | 0) % tHeight;
+              const u = (u1 + du21 * t) * tWidth;
+              const v = (v1 + dv21 * t) * tHeight;
+              const tx = ~~u % tWidth;
+              const ty = ~~v % tHeight
+              const ftx = u % tWidth;
+              const fty = v % tHeight;
+              const tx1 = (~~u + 1) % tWidth;
+              const ty1 = (~~v + 1) % tHeight;
 
               const dtx = ftx - tx;
               const dty = fty - ty;
+              let i0 = (ty * tWidth + tx) << 2;
+              let i1 = (ty * tWidth + tx1) << 2;
+              let i2 = (ty1 * tWidth + tx) << 2;
+              let i3 = (ty1 * tWidth + tx1) << 2;
 
-              const i0 = (ty * tWidth + tx) << 2;
-              const i1 = (ty * tWidth + tx1) << 2;
-              const i2 = (ty1 * tWidth + tx) << 2;
-              const i3 = (ty1 * tWidth + tx1) << 2;
-
-              const aR = tData[i0];
-              const bR = tData[i1];
-              const cR = tData[i2];
-              const dR = tData[i3];
-              const abR = aR + (bR - aR) * dtx;
-              const cdR = cR + (dR - cR) * dtx;
-              const abcdR = abR + (cdR - abR) * dty;
-
-              const aG = tData[i0 + 1];
-              const bG = tData[i1 + 1];
-              const cG = tData[i2 + 1];
-              const dG = tData[i3 + 1];
-              const abG = aG + (bG - aG) * dtx;
-              const cdG = cG + (dG - cG) * dtx;
-              const abcdG = abG + (cdG - abG) * dty;
-
-              const aB = tData[i0 + 2];
-              const bB = tData[i1 + 2];
-              const cB = tData[i2 + 2];
-              const dB = tData[i3 + 2];
-              const abB = aB + (bB - aB) * dtx;
-              const cdB = cB + (dB - cB) * dtx;
-              const abcdB = abB + (cdB - abB) * dty;
-
-              const abcdA = tData[i0 + 3];
-
-              Screen32[yWidth + x] = (abcdA << 24) | (abcdB << 16) | (abcdG << 8) | abcdR;
+              const abcdR = lerpf(lerpf(tData[i0], tData[i1], dtx), lerpf(tData[i2], tData[i3], dtx), dty);
+              i0++; i1++; i2++; i3++;
+              const abcdG = lerpf(lerpf(tData[i0], tData[i1], dtx), lerpf(tData[i2], tData[i3], dtx), dty);
+              i0++; i1++; i2++; i3++;
+              const abcdB = lerpf(lerpf(tData[i0], tData[i1], dtx), lerpf(tData[i2], tData[i3], dtx), dty);
+              i0++;
+              Screen32[zBufferIndex] = (tData[i0] << 24) | (abcdB << 16) | (abcdG << 8) | abcdR;
             }
           }
         }

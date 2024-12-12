@@ -313,7 +313,7 @@ const cubesScene: TMesh[] = [
 
 const hmahScene: TMesh[] = createHmahScene();
 
-const meshes: TMesh[] = hmahScene;
+const meshes: TMesh[] = cubesScene;
 
 const toViewport = (p: TVector3): TVector3 => {
   const { angleX, angleY } = state;
