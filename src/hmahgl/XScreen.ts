@@ -420,8 +420,6 @@ const fillTextureTriangle = (
   fillTrianglePart(b, c, bUV, cUV);
 }
 
-let penis = true;
-
 const getImageData = () => Screen;
 const getDepthData = (): ImageData => {
   const { data: outData } = ZBufferImageData;
